@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 680" width="980" height="680">
+  <defs>
+    <style>
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 20px; fill: #1e293b; }
+      .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; fill: #64748b; }
+      .card-hdr { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 14px; }
+      .code-lbl { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace; font-size: 11px; }
+      .desc-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; fill: #475569; }
+      .ipc-arrow { stroke: #0284c7; stroke-width: 2; stroke-dasharray: 4,3; fill: none; }
+      .nccl-arrow { stroke: #10b981; stroke-width: 3; fill: none; }
+    </style>
+    <marker id="ar-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#0284c7"/>
+    </marker>
+    <marker id="ar-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#10b981"/>
+    </marker>
+  </defs>
+
+  <rect x="10" y="10" width="960" height="660" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+
+  <!-- Title -->
+  <text x="40" y="45" class="title">V4: 单机多卡分布式 Worker 进程与控制面通信架构</text>
+  <text x="40" y="68" class="subtitle">Driver 控制面集中调度 + 多卡 Worker 独立进程绑定 + NCCL 高速卡间通信环</text>
+
+  <!-- Driver Process Box -->
+  <g transform="translate(40, 95)">
+    <rect x="0" y="0" width="880" height="120" rx="10" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+    <rect x="15" y="15" width="220" height="30" rx="6" fill="#e2e8f0"/>
+    <text x="125" y="35" text-anchor="middle" class="card-hdr" fill="#1e293b">Driver / Master 主控制进程</text>
+
+    <text x="15" y="65" class="desc-text" font-weight="600">• 接收用户并发请求，维护待调度队列 WAITING / RUNNING</text>
+    <text x="15" y="85" class="desc-text" font-weight="600">• 驱动 Scheduler.schedule()，决定每一步的批处理内容与显存分配方案</text>
+    <text x="15" y="105" class="desc-text" font-weight="600">• 通过 IPC / 共享内存向各 Worker 广播单步执行元数据 (Metadata Broadcast)</text>
+  </g>
+
+  <!-- IPC Broadcast Downward Arrows -->
+  <path d="M 230 215 L 230 265" class="ipc-arrow" marker-end="url(#ar-blue)"/>
+  <path d="M 480 215 L 480 265" class="ipc-arrow" marker-end="url(#ar-blue)"/>
+  <path d="M 730 215 L 730 265" class="ipc-arrow" marker-end="url(#ar-blue)"/>
+  <text x="480" y="245" text-anchor="middle" font-size="11" fill="#0284c7" font-weight="600">
+    IPC 广播调度指令: input_ids, slots, block_tables
+  </text>
+
+  <!-- Worker Container (3 GPUs example) -->
+  <g transform="translate(40, 275)">
+    <!-- Worker 0 -->
+    <g transform="translate(0, 0)">
+      <rect x="0" y="0" width="270" height="240" rx="10" fill="#e0f2fe" stroke="#0284c7" stroke-width="1.5"/>
+      <rect x="15" y="15" width="130" height="28" rx="6" fill="#bae6fd"/>
+      <text x="80" y="34" text-anchor="middle" class="card-hdr" fill="#0369a1">Worker 0 (Rank 0)</text>
+
+      <text x="15" y="68" class="desc-text" font-weight="700">绑定物理 GPU 0</text>
+      <text x="15" y="90" class="code-lbl" fill="#0369a1">• 持有权重: QKV[0], MLP[0]</text>
+      <text x="15" y="110" class="code-lbl" fill="#0369a1">• 独立 CUDA Stream / Memory</text>
+      <text x="15" y="130" class="code-lbl" fill="#0369a1">• 消除 Python GIL 锁干扰</text>
+
+      <rect x="15" y="150" width="240" height="70" rx="6" fill="#ffffff" stroke="#38bdf8"/>
+      <text x="25" y="172" font-size="11" font-weight="700" fill="#0c4a6e">本地前向执行:</text>
+      <text x="25" y="190" class="code-lbl">Local Linear → Local Attn</text>
+      <text x="25" y="206" class="code-lbl">RowLinear → 发起 All-Reduce</text>
+    </g>
+
+    <!-- Worker 1 -->
+    <g transform="translate(305, 0)">
+      <rect x="0" y="0" width="270" height="240" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
+      <rect x="15" y="15" width="130" height="28" rx="6" fill="#ddd6fe"/>
+      <text x="80" y="34" text-anchor="middle" class="card-hdr" fill="#5b21b6">Worker 1 (Rank 1)</text>
+
+      <text x="15" y="68" class="desc-text" font-weight="700">绑定物理 GPU 1</text>
+      <text x="15" y="90" class="code-lbl" fill="#5b21b6">• 持有权重: QKV[1], MLP[1]</text>
+      <text x="15" y="110" class="code-lbl" fill="#5b21b6">• 独立 CUDA Stream / Memory</text>
+      <text x="15" y="130" class="code-lbl" fill="#5b21b6">• 消除 Python GIL 锁干扰</text>
+
+      <rect x="15" y="150" width="240" height="70" rx="6" fill="#ffffff" stroke="#a78bfa"/>
+      <text x="25" y="172" font-size="11" font-weight="700" fill="#4c1d95">本地前向执行:</text>
+      <text x="25" y="190" class="code-lbl">Local Linear → Local Attn</text>
+      <text x="25" y="206" class="code-lbl">RowLinear → 发起 All-Reduce</text>
+    </g>
+
+    <!-- Worker 2 / Rank N -->
+    <g transform="translate(610, 0)">
+      <rect x="0" y="0" width="270" height="240" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+      <rect x="15" y="15" width="150" height="28" rx="6" fill="#bbf7d0"/>
+      <text x="90" y="34" text-anchor="middle" class="card-hdr" fill="#14532d">Worker N (Rank N-1)</text>
+
+      <text x="15" y="68" class="desc-text" font-weight="700">绑定物理 GPU N-1</text>
+      <text x="15" y="90" class="code-lbl" fill="#166534">• 持有权重分片 N-1</text>
+      <text x="15" y="110" class="code-lbl" fill="#166534">• 独立 CUDA Stream / Memory</text>
+      <text x="15" y="130" class="code-lbl" fill="#166534">• 消除 Python GIL 锁干扰</text>
+
+      <rect x="15" y="150" width="240" height="70" rx="6" fill="#ffffff" stroke="#4ade80"/>
+      <text x="25" y="172" font-size="11" font-weight="700" fill="#14532d">本地前向执行:</text>
+      <text x="25" y="190" class="code-lbl">Local Linear → Local Attn</text>
+      <text x="25" y="206" class="code-lbl">RowLinear → 发起 All-Reduce</text>
+    </g>
+  </g>
+
+  <!-- NCCL High-Speed Interconnect Bus (Bi-directional arrows) -->
+  <g transform="translate(40, 545)">
+    <rect x="0" y="0" width="880" height="85" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="2"/>
+    <text x="440" y="25" text-anchor="middle" font-family="sans-serif" font-weight="700" font-size="13" fill="#15803d">
+      高速 GPU-to-GPU 互联通信总线 (NVLink / NVSwitch / PCIe / NCCL 环形通信)
+    </text>
+
+    <!-- Communication Paths -->
+    <path d="M 135 -30 L 135 45 L 745 45 L 745 -30" class="nccl-arrow"/>
+    <path d="M 440 -30 L 440 45" class="nccl-arrow"/>
+
+    <text x="440" y="70" text-anchor="middle" class="desc-text" font-weight="600">
+      点对点直接 DMA 传输 (P2P Memory Copy)，单层仅 2 次微秒级 All-Reduce，线性扩展性能极佳！
+    </text>
+  </g>
+
+</svg>

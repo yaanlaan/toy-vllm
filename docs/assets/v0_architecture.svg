@@ -1,0 +1,177 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 760" width="960" height="760">
+  <defs>
+    <style>
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 20px; fill: #1e293b; }
+      .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; fill: #64748b; }
+      .box-label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 600; font-size: 14px; }
+      .box-desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; fill: #475569; }
+      .flow-arrow { stroke: #0284c7; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+      .residual-arrow { stroke: #f59e0b; stroke-width: 2; stroke-dasharray: 4,4; fill: none; }
+    </style>
+    <linearGradient id="grad-embed" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e0f2fe"/>
+      <stop offset="100%" stop-color="#bae6fd"/>
+    </linearGradient>
+    <linearGradient id="grad-norm" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fef3c7"/>
+      <stop offset="100%" stop-color="#fde68a"/>
+    </linearGradient>
+    <linearGradient id="grad-attn" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e0e7ff"/>
+      <stop offset="100%" stop-color="#c7d2fe"/>
+    </linearGradient>
+    <linearGradient id="grad-mlp" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ecfdf5"/>
+      <stop offset="100%" stop-color="#a7f3d0"/>
+    </linearGradient>
+    <linearGradient id="grad-head" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f1f5f9"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#0284c7"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#f59e0b"/>
+    </marker>
+  </defs>
+
+  <!-- Background Card -->
+  <rect x="10" y="10" width="940" height="740" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+
+  <!-- Header -->
+  <text x="40" y="45" class="title">V0: Qwen2.5 Transformer Decoder 算子流与模型结构</text>
+  <text x="40" y="68" class="subtitle">标准 Pre-RMSNorm + GQA (Grouped Query Attention) + SwiGLU 结构架构全景</text>
+
+  <!-- Input Tokens -->
+  <g transform="translate(380, 95)">
+    <rect x="0" y="0" width="200" height="42" rx="8" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5"/>
+    <text x="100" y="26" text-anchor="middle" class="box-label" fill="#1e293b">输入 Token IDs: x</text>
+  </g>
+
+  <!-- Arrow to Embedding -->
+  <path d="M 480 137 L 480 157" class="flow-arrow" marker-end="url(#arrow)"/>
+
+  <!-- Embedding -->
+  <g transform="translate(350, 160)">
+    <rect x="0" y="0" width="260" height="44" rx="8" fill="url(#grad-embed)" stroke="#38bdf8" stroke-width="1.5"/>
+    <text x="130" y="24" text-anchor="middle" class="box-label" fill="#0369a1">Embedding Layer (词表嵌入)</text>
+    <text x="130" y="38" text-anchor="middle" class="box-desc">shape: (batch, seq_len, hidden_size)</text>
+  </g>
+
+  <!-- Main Decoder Layer Container -->
+  <rect x="80" y="225" width="800" height="395" rx="14" fill="#fafafa" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <text x="95" y="248" font-family="sans-serif" font-weight="700" font-size="13" fill="#475569">Decoder Layer (× num_hidden_layers) [重复 N 层]</text>
+
+  <!-- Residual path 1 start -->
+  <circle cx="480" cy="235" r="4" fill="#0284c7"/>
+  <path d="M 480 235 L 200 235 L 200 425 L 435 425" class="residual-arrow" marker-end="url(#arrow-amber)"/>
+  <text x="210" y="320" font-family="sans-serif" font-size="11" fill="#d97706" font-weight="600">残差分支 1 (Add Residual)</text>
+
+  <!-- Arrow to Input Norm -->
+  <path d="M 480 204 L 480 260" class="flow-arrow" marker-end="url(#arrow)"/>
+
+  <!-- Input Norm -->
+  <g transform="translate(360, 263)">
+    <rect x="0" y="0" width="240" height="38" rx="8" fill="url(#grad-norm)" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="120" y="23" text-anchor="middle" class="box-label" fill="#b45309">Input RMSNorm</text>
+  </g>
+
+  <!-- Arrow to QKV Proj -->
+  <path d="M 480 301 L 480 318" class="flow-arrow" marker-end="url(#arrow)"/>
+
+  <!-- GQA Self Attention Box -->
+  <g transform="translate(250, 320)">
+    <rect x="0" y="0" width="460" height="82" rx="10" fill="url(#grad-attn)" stroke="#818cf8" stroke-width="1.5"/>
+    <text x="230" y="22" text-anchor="middle" class="box-label" fill="#4338ca">Grouped Query Attention (GQA)</text>
+    
+    <!-- Mini steps inside attention -->
+    <rect x="15" y="32" width="130" height="38" rx="6" fill="#ffffff" stroke="#a5b4fc" stroke-width="1"/>
+    <text x="80" y="48" text-anchor="middle" font-size="11" font-weight="600" fill="#312e81">Q, K, V Proj</text>
+    <text x="80" y="62" text-anchor="middle" font-size="9" fill="#6366f1">+ RoPE 旋转位置编码</text>
+
+    <text x="160" y="55" font-size="16" fill="#6366f1">→</text>
+
+    <rect x="180" y="32" width="135" height="38" rx="6" fill="#ffffff" stroke="#a5b4fc" stroke-width="1"/>
+    <text x="247" y="48" text-anchor="middle" font-size="11" font-weight="600" fill="#312e81">Softmax(QK^T / √d)</text>
+    <text x="247" y="62" text-anchor="middle" font-size="9" fill="#6366f1">K/V 广播匹配 Q Heads</text>
+
+    <text x="330" y="55" font-size="16" fill="#6366f1">→</text>
+
+    <rect x="345" y="32" width="100" height="38" rx="6" fill="#ffffff" stroke="#a5b4fc" stroke-width="1"/>
+    <text x="395" y="48" text-anchor="middle" font-size="11" font-weight="600" fill="#312e81">Out Proj (O)</text>
+    <text x="395" y="62" text-anchor="middle" font-size="9" fill="#6366f1">Linear 投影</text>
+  </g>
+
+  <!-- Arrow to Add 1 -->
+  <path d="M 480 402 L 480 415" class="flow-arrow" marker-end="url(#arrow)"/>
+
+  <!-- Add 1 -->
+  <circle cx="480" cy="425" r="12" fill="#ffffff" stroke="#0284c7" stroke-width="2"/>
+  <text x="480" y="430" text-anchor="middle" font-family="sans-serif" font-weight="700" font-size="16" fill="#0284c7">+</text>
+
+  <!-- Residual path 2 start -->
+  <circle cx="480" cy="442" r="4" fill="#0284c7"/>
+  <path d="M 480 442 L 200 442 L 200 595 L 435 595" class="residual-arrow" marker-end="url(#arrow-amber)"/>
+  <text x="210" y="515" font-family="sans-serif" font-size="11" fill="#d97706" font-weight="600">残差分支 2 (Add Residual)</text>
+
+  <!-- Arrow to Post Attn Norm -->
+  <path d="M 480 437 L 480 455" class="flow-arrow" marker-end="url(#arrow)"/>
+
+  <!-- Post Attn Norm -->
+  <g transform="translate(360, 458)">
+    <rect x="0" y="0" width="240" height="36" rx="8" fill="url(#grad-norm)" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="120" y="22" text-anchor="middle" class="box-label" fill="#b45309">Post-Attention RMSNorm</text>
+  </g>
+
+  <!-- Arrow to SwiGLU MLP -->
+  <path d="M 480 494 L 480 508" class="flow-arrow" marker-end="url(#arrow)"/>
+
+  <!-- SwiGLU MLP Box -->
+  <g transform="translate(250, 510)">
+    <rect x="0" y="0" width="460" height="66" rx="10" fill="url(#grad-mlp)" stroke="#34d399" stroke-width="1.5"/>
+    <text x="230" y="22" text-anchor="middle" class="box-label" fill="#065f46">SwiGLU MLP (前馈门控网络)</text>
+
+    <text x="230" y="48" text-anchor="middle" font-family="monospace" font-size="12" fill="#047857">
+      output = down_proj( SiLU(gate_proj(x)) ⊙ up_proj(x) )
+    </text>
+  </g>
+
+  <!-- Arrow to Add 2 -->
+  <path d="M 480 576 L 480 585" class="flow-arrow" marker-end="url(#arrow)"/>
+
+  <!-- Add 2 -->
+  <circle cx="480" cy="595" r="12" fill="#ffffff" stroke="#0284c7" stroke-width="2"/>
+  <text x="480" y="600" text-anchor="middle" font-family="sans-serif" font-weight="700" font-size="16" fill="#0284c7">+</text>
+
+  <!-- Arrow out of Decoder Layer -->
+  <path d="M 480 607 L 480 632" class="flow-arrow" marker-end="url(#arrow)"/>
+
+  <!-- Final RMSNorm & LM Head & Sampler in bottom row -->
+  <g transform="translate(180, 635)">
+    <rect x="0" y="0" width="170" height="42" rx="8" fill="url(#grad-norm)" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="85" y="25" text-anchor="middle" class="box-label" fill="#b45309">Final RMSNorm</text>
+  </g>
+
+  <path d="M 350 656 L 385 656" class="flow-arrow" marker-end="url(#arrow)"/>
+
+  <g transform="translate(390, 635)">
+    <rect x="0" y="0" width="170" height="42" rx="8" fill="url(#grad-head)" stroke="#64748b" stroke-width="1.5"/>
+    <text x="85" y="20" text-anchor="middle" class="box-label" fill="#334155">LM Head (Linear)</text>
+    <text x="85" y="34" text-anchor="middle" class="box-desc">Logits: (batch, vocab_size)</text>
+  </g>
+
+  <path d="M 560 656 L 595 656" class="flow-arrow" marker-end="url(#arrow)"/>
+
+  <g transform="translate(600, 635)">
+    <rect x="0" y="0" width="190" height="42" rx="8" fill="url(#grad-embed)" stroke="#0284c7" stroke-width="1.5"/>
+    <text x="95" y="20" text-anchor="middle" class="box-label" fill="#0369a1">Sampler (采样器)</text>
+    <text x="95" y="34" text-anchor="middle" class="box-desc">Temp / Top-K / Top-P → Next Token</text>
+  </g>
+
+  <!-- Output token -->
+  <path d="M 695 677 L 695 700" class="flow-arrow" marker-end="url(#arrow)"/>
+  <rect x="620" y="702" width="150" height="30" rx="6" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="695" y="721" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#15803d">生成 New Token ID</text>
+
+</svg>

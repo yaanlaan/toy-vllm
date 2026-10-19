@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 720" width="980" height="720">
+  <defs>
+    <style>
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 20px; fill: #1e293b; }
+      .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; fill: #64748b; }
+      .sec-hdr { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 15px; }
+      .tag-font { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace; font-size: 11px; }
+      .desc-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; fill: #475569; }
+      .bubble-box { fill: #fee2e2; stroke: #ef4444; stroke-dasharray: 3,3; }
+      .exec-box { fill: #86efac; stroke: #16a34a; }
+      .graph-exec { fill: #38bdf8; stroke: #0284c7; }
+    </style>
+    <marker id="ar-gray" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <rect x="10" y="10" width="960" height="700" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+
+  <!-- Title -->
+  <text x="40" y="45" class="title">V3: CUDA Graph 录制回放与 CPU 发射开销彻底消除机制</text>
+  <text x="40" y="68" class="subtitle">传统逐算子发射 (GPU 大量饥饿气泡，CPU 成为严重瓶颈) vs CUDA Graph 一键回放 (全硬件级流水，时延腰斩)</text>
+
+  <!-- ================= TOP: Traditional Eager Mode ================= -->
+  <g transform="translate(35, 95)">
+    <rect x="0" y="0" width="910" height="260" rx="12" fill="#fff5f5" stroke="#fecaca" stroke-width="1.5"/>
+    <text x="20" y="28" class="sec-hdr" fill="#991b1b">传统逐算子发射模式 (Eager Execution)</text>
+    <text x="20" y="48" class="desc-text">24 层 Transformer 产生超过 200+ 次连续 PyTorch 算子发射。每个 Kernel 仅需数微秒，但 CPU 发射需要十几微秒！</text>
+
+    <!-- Timeline Arrow -->
+    <path d="M 80 72 L 860 72" stroke="#64748b" stroke-width="1.5" marker-end="url(#ar-gray)"/>
+    <text x="865" y="76" font-family="sans-serif" font-size="11" fill="#64748b">时间流 (Timeline)</text>
+
+    <!-- CPU Row -->
+    <g transform="translate(20, 85)">
+      <text x="0" y="20" font-family="sans-serif" font-weight="700" font-size="12" fill="#334155">CPU 发射端:</text>
+      <rect x="90" y="5" width="55" height="25" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+      <text x="117" y="22" text-anchor="middle" font-size="9" fill="#334155">Launch 1</text>
+
+      <rect x="190" y="5" width="55" height="25" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+      <text x="217" y="22" text-anchor="middle" font-size="9" fill="#334155">Launch 2</text>
+
+      <rect x="290" y="5" width="55" height="25" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+      <text x="317" y="22" text-anchor="middle" font-size="9" fill="#334155">Launch 3</text>
+
+      <rect x="390" y="5" width="55" height="25" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+      <text x="417" y="22" text-anchor="middle" font-size="9" fill="#334155">Launch 4</text>
+
+      <text x="470" y="22" font-family="sans-serif" font-size="14" fill="#64748b">... 200+ 次 Python 发射循环 ...</text>
+    </g>
+
+    <!-- GPU Row -->
+    <g transform="translate(20, 125)">
+      <text x="0" y="20" font-family="sans-serif" font-weight="700" font-size="12" fill="#15803d">GPU 硬件端:</text>
+      <!-- Kernel 1 -->
+      <rect x="90" y="5" width="20" height="25" rx="3" class="exec-box"/>
+      <text x="100" y="21" text-anchor="middle" font-size="8" fill="#14532d">K1</text>
+
+      <!-- Bubble 1 -->
+      <rect x="115" y="5" width="75" height="25" rx="3" class="bubble-box"/>
+      <text x="152" y="21" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="600">GPU 饥饿气泡</text>
+
+      <!-- Kernel 2 -->
+      <rect x="195" y="5" width="20" height="25" rx="3" class="exec-box"/>
+      <text x="205" y="21" text-anchor="middle" font-size="8" fill="#14532d">K2</text>
+
+      <!-- Bubble 2 -->
+      <rect x="220" y="5" width="70" height="25" rx="3" class="bubble-box"/>
+      <text x="255" y="21" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="600">等待发射...</text>
+
+      <!-- Kernel 3 -->
+      <rect x="295" y="5" width="20" height="25" rx="3" class="exec-box"/>
+      <text x="305" y="21" text-anchor="middle" font-size="8" fill="#14532d">K3</text>
+
+      <!-- Bubble 3 -->
+      <rect x="320" y="5" width="70" height="25" rx="3" class="bubble-box"/>
+      <text x="355" y="21" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="600">等待发射...</text>
+
+      <!-- Kernel 4 -->
+      <rect x="395" y="5" width="20" height="25" rx="3" class="exec-box"/>
+      <text x="405" y="21" text-anchor="middle" font-size="8" fill="#14532d">K4</text>
+    </g>
+
+    <!-- Bottom summary -->
+    <rect x="20" y="180" width="870" height="60" rx="6" fill="#ffffff" stroke="#fca5a5"/>
+    <text x="15" y="25" font-family="sans-serif" font-size="12" fill="#7f1d1d" font-weight="700">
+      实测痛点剖析:
+    </text>
+    <text x="15" y="45" class="desc-text">
+      在 RTX 5060 Ti 上单步 Decode 实际 GPU 运算耗时只有 3ms，但逐个内核调用发射耗时高达 40ms！GPU 算力利用率不足 10%！
+    </text>
+  </g>
+
+  <!-- ================= BOTTOM: CUDA Graph ================= -->
+  <g transform="translate(35, 375)">
+    <rect x="0" y="0" width="910" height="315" rx="12" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+    <text x="20" y="28" class="sec-hdr" fill="#15803d">CUDA Graph 一键回放模式 (Graph Replay)</text>
+    <text x="20" y="48" class="desc-text">预先一次性录制整张执行图（Capture），Decode 步 CPU 仅发射一次 replay 命令，GPU 全流水无缝执行！</text>
+
+    <!-- Timeline Arrow -->
+    <path d="M 80 72 L 860 72" stroke="#64748b" stroke-width="1.5" marker-end="url(#ar-gray)"/>
+    <text x="865" y="76" font-family="sans-serif" font-size="11" fill="#64748b">时间流 (Timeline)</text>
+
+    <!-- CPU Row -->
+    <g transform="translate(20, 85)">
+      <text x="0" y="20" font-family="sans-serif" font-weight="700" font-size="12" fill="#334155">CPU 发射端:</text>
+      <rect x="90" y="5" width="130" height="25" rx="4" fill="#0284c7" stroke="#0369a1"/>
+      <text x="155" y="21" text-anchor="middle" font-size="10" fill="#ffffff" font-weight="700">graph.replay() [单次调用]</text>
+
+      <rect x="235" y="5" width="620" height="25" rx="4" fill="#f8fafc" stroke="#94a3b8" stroke-dasharray="3,3"/>
+      <text x="545" y="21" text-anchor="middle" font-size="11" fill="#64748b">
+        CPU 立即解放！可在后台准备下一个请求或处理网络 I/O
+      </text>
+    </g>
+
+    <!-- GPU Row -->
+    <g transform="translate(20, 125)">
+      <text x="0" y="20" font-family="sans-serif" font-weight="700" font-size="12" fill="#15803d">GPU 硬件端:</text>
+      <!-- Continuous Block of execution -->
+      <rect x="90" y="5" width="460" height="28" rx="4" class="graph-exec"/>
+      <text x="320" y="23" text-anchor="middle" font-family="monospace" font-size="11" fill="#0c4a6e" font-weight="700">
+        GPU 硬件流水线无缝全速运行 (K1 → K2 → K3 ... K200+) 零气泡！
+      </text>
+    </g>
+
+    <!-- Summary box -->
+    <g transform="translate(20, 180)">
+      <rect x="0" y="0" width="870" height="115" rx="8" fill="#ffffff" stroke="#86efac"/>
+      <text x="15" y="25" font-family="sans-serif" font-weight="700" font-size="13" fill="#15803d">
+        CUDA Graph 三步走标准流程:
+      </text>
+      <text x="25" y="48" class="desc-text" font-weight="600">
+        1. 预热 (Warmup): 执行数次前向，强制 PyTorch 初始化所有内部 CUDA 资源与内存池分配。
+      </text>
+      <text x="25" y="70" class="desc-text" font-weight="600">
+        2. 录制 (Capture): 在固定内存地址下进入 <tspan font-family="monospace">with torch.cuda.graph(g):</tspan>，捕捉整个前向流。
+      </text>
+      <text x="25" y="92" class="desc-text" font-weight="600">
+        3. 回放 (Replay): 每步 Decode 只需将 token 拷入输入张量，直接 <tspan font-family="monospace">g.replay()</tspan>，单步延迟断崖式下降 50%~70%！
+      </text>
+    </g>
+  </g>
+
+</svg>

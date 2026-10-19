@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 680" width="960" height="680">
+  <defs>
+    <style>
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 20px; fill: #1e293b; }
+      .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; fill: #64748b; }
+      .phase-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 15px; }
+      .step-hdr { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 600; font-size: 13px; fill: #0f172a; }
+      .code-font { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace; font-size: 11px; }
+      .desc-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; fill: #475569; }
+      .flow-line { stroke: #0284c7; stroke-width: 2; fill: none; }
+      .write-line { stroke: #10b981; stroke-width: 2; stroke-dasharray: 4,3; fill: none; }
+      .read-line { stroke: #8b5cf6; stroke-width: 2; stroke-dasharray: 4,3; fill: none; }
+    </style>
+    <marker id="m-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#0284c7"/>
+    </marker>
+    <marker id="m-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#10b981"/>
+    </marker>
+    <marker id="m-purple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#8b5cf6"/>
+    </marker>
+  </defs>
+
+  <rect x="10" y="10" width="940" height="660" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+
+  <!-- Title -->
+  <text x="40" y="45" class="title">V1: PagedAttention 推理两阶段（Prefill 与 Decode）执行流水</text>
+  <text x="40" y="68" class="subtitle">Prefill 批量写入物理页并产出首字 vs Decode 单 Token 增量写入与分页寻址读出</text>
+
+  <!-- ================= PHASE 1: PREFILL ================= -->
+  <g transform="translate(40, 95)">
+    <rect x="0" y="0" width="880" height="235" rx="10" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+    <text x="20" y="28" class="phase-title" fill="#166534">阶段一：Prefill 阶段 (首字计算 / Context Phase)</text>
+    <text x="20" y="48" class="desc-text">处理用户完整 Prompt (例如 35 个 tokens)，一次性为 Prompt 分配物理块并写入全部 KV Cache。</text>
+
+    <!-- Substep 1: Prompt Forward -->
+    <g transform="translate(20, 65)">
+      <rect x="0" y="0" width="250" height="150" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="15" y="24" class="step-hdr">1. Prompt 全量前向</text>
+      <text x="15" y="48" class="code-font" fill="#0369a1">Prompt Tokens (L = 35)</text>
+      <text x="15" y="68" class="desc-text">计算 Q, K, V 投影 (35 × D)</text>
+      <text x="15" y="88" class="desc-text">计算 Prompt 内部自注意力</text>
+      <text x="15" y="108" class="desc-text">获取最后一个 Token 的 Logits</text>
+      <rect x="15" y="118" width="220" height="24" rx="4" fill="#bbf7d0" stroke="#22c55e"/>
+      <text x="125" y="134" text-anchor="middle" class="code-font" fill="#14532d">采样产出: Token #1</text>
+    </g>
+
+    <path d="M 290 140 L 325 140" class="flow-line" marker-end="url(#m-blue)"/>
+
+    <!-- Substep 2: Block Allocation -->
+    <g transform="translate(330, 65)">
+      <rect x="0" y="0" width="240" height="150" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="15" y="24" class="step-hdr">2. 申请物理显存块</text>
+      <text x="15" y="48" class="code-font" fill="#7c3aed">需要 blocks = ceil(35/16) = 3</text>
+      <text x="15" y="72" class="desc-text">从 BlockAllocator 申请空闲物理块:</text>
+      <text x="25" y="94" class="code-font" fill="#6d28d9">block_ids = [5, 12, 19]</text>
+      <text x="15" y="118" class="desc-text">初始化当前请求的 Block Table:</text>
+      <text x="25" y="136" class="code-font" fill="#6d28d9">block_table = [5, 12, 19]</text>
+    </g>
+
+    <path d="M 590 140 L 625 140" class="write-line" marker-end="url(#m-green)"/>
+
+    <!-- Substep 3: Write KV Cache to Pool -->
+    <g transform="translate(630, 65)">
+      <rect x="0" y="0" width="230" height="150" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="15" y="24" class="step-hdr">3. 写入 KV Cache 显存池</text>
+      <text x="15" y="48" class="code-font" fill="#047857">Tokens 0~15  → 物理块 5</text>
+      <text x="15" y="70" class="code-font" fill="#047857">Tokens 16~31 → 物理块 12</text>
+      <text x="15" y="92" class="code-font" fill="#047857">Tokens 32~34 → 物理块 19 (前3槽)</text>
+      <rect x="15" y="112" width="200" height="28" rx="4" fill="#ecfdf5" stroke="#34d399"/>
+      <text x="115" y="130" text-anchor="middle" font-size="10" fill="#065f46" font-weight="600">物理块 19 剩余 13 个空槽位</text>
+    </g>
+  </g>
+
+  <!-- ================= PHASE 2: DECODE ================= -->
+  <g transform="translate(40, 355)">
+    <rect x="0" y="0" width="880" height="285" rx="10" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="1.5"/>
+    <text x="20" y="28" class="phase-title" fill="#5b21b6">阶段二：Decode 阶段 (增量生成 / Generation Loop)</text>
+    <text x="20" y="48" class="desc-text">每次模型输入仅为最新生成的 1 个 Token (seq_len = 1)，计算量极低！</text>
+
+    <!-- Decode Step A: Single Token Forward -->
+    <g transform="translate(20, 65)">
+      <rect x="0" y="0" width="250" height="200" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="15" y="24" class="step-hdr">1. 单 Token 极速前向</text>
+      <text x="15" y="48" class="code-font" fill="#4338ca">输入: Token #1 (1 × D)</text>
+      <text x="15" y="72" class="desc-text">计算单 Token 投影:</text>
+      <text x="25" y="92" class="code-font" fill="#3730a3">q: (1, num_heads, 1, head_dim)</text>
+      <text x="25" y="110" class="code-font" fill="#3730a3">k: (1, num_kv_heads, 1, head_dim)</text>
+      <text x="25" y="128" class="code-font" fill="#3730a3">v: (1, num_kv_heads, 1, head_dim)</text>
+      <text x="15" y="155" font-size="11" fill="#15803d" font-weight="600">计算量从 O(L²) 骤降为 O(1)</text>
+      <text x="15" y="175" class="desc-text">历史 KV 无需重复前向！</text>
+    </g>
+
+    <!-- Decode Step B: Slot Mapping & Write Cache -->
+    <g transform="translate(300, 65)">
+      <rect x="0" y="0" width="270" height="200" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="15" y="24" class="step-hdr">2. 写入物理页当前槽位</text>
+      <text x="15" y="48" class="desc-text">当前 Token 索引 = 35 (第 36 个 token):</text>
+      <text x="25" y="68" class="code-font" fill="#047857">block_idx = 35 // 16 = 2</text>
+      <text x="25" y="86" class="code-font" fill="#047857">block_offset = 35 % 16 = 3</text>
+      <text x="25" y="106" class="code-font" fill="#047857">target_block = block_table[2] = 19</text>
+      <rect x="15" y="120" width="240" height="32" rx="4" fill="#f0fdf4" stroke="#22c55e"/>
+      <text x="135" y="140" text-anchor="middle" class="code-font" fill="#14532d">写入物理块 19 的第 3 槽位</text>
+      <text x="15" y="172" class="desc-text">若 offset == 0，自动分配新 block 追加！</text>
+    </g>
+
+    <!-- Decode Step C: Paged Attention Computation -->
+    <g transform="translate(600, 65)">
+      <rect x="0" y="0" width="260" height="200" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="15" y="24" class="step-hdr">3. PagedAttention 寻址计算</text>
+      <text x="15" y="46" class="desc-text">根据 block_table = [5, 12, 19]</text>
+      <text x="15" y="64" class="desc-text">从物理显存池提取历史 36 个 KV:</text>
+      <text x="25" y="84" class="code-font" fill="#6d28d9">KV = gather_kv(pool, table, len=36)</text>
+      <text x="15" y="108" class="desc-text">当前单 Q 与全部历史 KV 做 Attention:</text>
+      <text x="25" y="126" class="code-font" fill="#6d28d9">logits = Softmax(q @ K.T / √d) @ V</text>
+      <rect x="15" y="145" width="230" height="36" rx="4" fill="#ede9fe" stroke="#8b5cf6"/>
+      <text x="130" y="167" text-anchor="middle" class="code-font" fill="#5b21b6">输出 Next Token #2 (进入下轮循环)</text>
+    </g>
+  </g>
+
+</svg>

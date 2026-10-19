@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 720" width="980" height="720">
+  <defs>
+    <style>
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 20px; fill: #1e293b; }
+      .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; fill: #64748b; }
+      .sec-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 15px; }
+      .req-label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 600; font-size: 12px; }
+      .bubble-label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 11px; fill: #ef4444; font-weight: 600; }
+      .active-label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace; font-size: 11px; fill: #15803d; font-weight: 600; }
+      .desc-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; fill: #475569; }
+      .timeline-axis { stroke: #94a3b8; stroke-width: 1.5; stroke-dasharray: 4,3; }
+      .arrow { stroke: #0284c7; stroke-width: 2; fill: none; }
+    </style>
+    <linearGradient id="g-active" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#86efac"/>
+      <stop offset="100%" stop-color="#4ade80"/>
+    </linearGradient>
+    <linearGradient id="g-bubble" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fee2e2"/>
+      <stop offset="100%" stop-color="#fecaca"/>
+    </linearGradient>
+    <linearGradient id="g-newreq" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#bae6fd"/>
+      <stop offset="100%" stop-color="#7dd3fc"/>
+    </linearGradient>
+    <marker id="ar-time" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <rect x="10" y="10" width="960" height="700" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+
+  <!-- Main Title -->
+  <text x="40" y="45" class="title">V2: 静态批处理 (Static) vs 连续批处理 (Continuous Batching)</text>
+  <text x="40" y="68" class="subtitle">传统请求级打包（长文本拖死短文本、算力气泡严重） vs 迭代级动态调度（请求即走即进、GPU 吞吐数倍爆发）</text>
+
+  <!-- ================= TOP: Static Batching ================= -->
+  <g transform="translate(35, 95)">
+    <rect x="0" y="0" width="910" height="260" rx="12" fill="#fff5f5" stroke="#fecaca" stroke-width="1.5"/>
+    <text x="20" y="28" class="sec-title" fill="#991b1b">传统静态批处理 (Static Batching / Request-level Batching)</text>
+    <text x="20" y="48" class="desc-text">整个 Batch 的生命周期由最长请求决定。短请求早早生成了 EOS，但依然被迫参与 Padding 计算和显存锁定！</text>
+
+    <!-- Timeline Arrow -->
+    <path d="M 120 70 L 860 70" stroke="#64748b" stroke-width="1.5" marker-end="url(#ar-time)"/>
+    <text x="865" y="74" font-family="sans-serif" font-size="11" fill="#64748b">时间 (Time)</text>
+
+    <!-- Rows for Requests -->
+    <!-- Req 1: Medium (40 tokens) -->
+    <g transform="translate(20, 85)">
+      <text x="0" y="22" class="req-label" fill="#1e293b">Request 1:</text>
+      <!-- Active 150px -->
+      <rect x="100" y="5" width="220" height="28" rx="4" fill="url(#g-active)" stroke="#22c55e"/>
+      <text x="210" y="23" text-anchor="middle" class="active-label">Generating (40 tokens)</text>
+      <!-- Wasted bubble 480px -->
+      <rect x="325" y="5" width="460" height="28" rx="4" fill="url(#g-bubble)" stroke="#ef4444" stroke-dasharray="3,3"/>
+      <text x="555" y="23" text-anchor="middle" class="bubble-label">[闲置气泡] 显存锁定中...</text>
+    </g>
+
+    <!-- Req 2: Short (15 tokens) -->
+    <g transform="translate(20, 125)">
+      <text x="0" y="22" class="req-label" fill="#1e293b">Request 2:</text>
+      <rect x="100" y="5" width="90" height="28" rx="4" fill="url(#g-active)" stroke="#22c55e"/>
+      <text x="145" y="23" text-anchor="middle" class="active-label">15 tokens</text>
+      <rect x="195" y="5" width="590" height="28" rx="4" fill="url(#g-bubble)" stroke="#ef4444" stroke-dasharray="3,3"/>
+      <text x="490" y="23" text-anchor="middle" class="bubble-label">[严重气泡] 完成极早但必须空等最慢请求 (浪费 82% 周期)</text>
+    </g>
+
+    <!-- Req 3: Very Long (120 tokens) -->
+    <g transform="translate(20, 165)">
+      <text x="0" y="22" class="req-label" fill="#1e293b">Request 3:</text>
+      <rect x="100" y="5" width="685" height="28" rx="4" fill="url(#g-active)" stroke="#22c55e"/>
+      <text x="442" y="23" text-anchor="middle" class="active-label">Generating Long Context (120 tokens) ─── 瓶颈木桶长板</text>
+    </g>
+
+    <!-- Req 4: Queued -->
+    <g transform="translate(20, 205)">
+      <text x="0" y="22" class="req-label" fill="#64748b">Request 4 (队列中):</text>
+      <rect x="100" y="5" width="685" height="28" rx="4" fill="#f8fafc" stroke="#94a3b8" stroke-dasharray="4,4"/>
+      <text x="442" y="23" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#64748b">
+        被迫长时间排队等待前面整个 Batch 完全退席，才能进入下一轮静态 Batch！
+      </text>
+    </g>
+  </g>
+
+  <!-- ================= BOTTOM: Continuous Batching ================= -->
+  <g transform="translate(35, 375)">
+    <rect x="0" y="0" width="910" height="315" rx="12" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+    <text x="20" y="28" class="sec-title" fill="#15803d">连续批处理 (Continuous Batching / Iteration-level Batching)</text>
+    <text x="20" y="48" class="desc-text">按 Token 迭代粒度（Iteration-level）动态调度：请求一旦完成立即退席释放显存，新就绪请求立即填充插队！</text>
+
+    <!-- Timeline Arrow -->
+    <path d="M 120 70 L 860 70" stroke="#64748b" stroke-width="1.5" marker-end="url(#ar-time)"/>
+    <text x="865" y="74" font-family="sans-serif" font-size="11" fill="#64748b">迭代步数 (Iterations / Steps)</text>
+
+    <!-- Step Grid Lines -->
+    <path d="M 200 65 L 200 290" class="timeline-axis"/>
+    <path d="M 320 65 L 320 290" class="timeline-axis"/>
+    <path d="M 500 65 L 500 290" class="timeline-axis"/>
+    <path d="M 660 65 L 660 290" class="timeline-axis"/>
+
+    <!-- Slot 1 -->
+    <g transform="translate(20, 85)">
+      <text x="0" y="22" class="req-label" fill="#1e293b">Batch Slot 1:</text>
+      <!-- Req 1 finishes at 320 -->
+      <rect x="100" y="5" width="220" height="28" rx="4" fill="url(#g-active)" stroke="#22c55e"/>
+      <text x="210" y="23" text-anchor="middle" class="active-label">Req 1 (40 tokens) [完成]</text>
+      <!-- Req 5 immediately inserted! -->
+      <rect x="325" y="5" width="460" height="28" rx="4" fill="url(#g-newreq)" stroke="#0284c7"/>
+      <text x="555" y="23" text-anchor="middle" font-family="monospace" font-size="11" fill="#0369a1" font-weight="600">
+        新请求 Req 5 立即无缝切入运行！(Zero Bubbles)
+      </text>
+    </g>
+
+    <!-- Slot 2 -->
+    <g transform="translate(20, 125)">
+      <text x="0" y="22" class="req-label" fill="#1e293b">Batch Slot 2:</text>
+      <!-- Req 2 finishes very early at 195 -->
+      <rect x="100" y="5" width="95" height="28" rx="4" fill="url(#g-active)" stroke="#22c55e"/>
+      <text x="147" y="23" text-anchor="middle" class="active-label">Req 2 (15) [完成]</text>
+      <!-- Req 4 immediately enters at 200! -->
+      <rect x="200" y="5" width="295" height="28" rx="4" fill="url(#g-newreq)" stroke="#0284c7"/>
+      <text x="347" y="23" text-anchor="middle" font-family="monospace" font-size="11" fill="#0369a1" font-weight="600">
+        Req 4 提前插队开始生成！
+      </text>
+      <!-- Req 6 enters at 500! -->
+      <rect x="500" y="5" width="285" height="28" rx="4" fill="#fef08a" stroke="#ca8a04"/>
+      <text x="642" y="23" text-anchor="middle" font-family="monospace" font-size="11" fill="#854d0e" font-weight="600">
+        Req 6 接着插队接力！
+      </text>
+    </g>
+
+    <!-- Slot 3 -->
+    <g transform="translate(20, 165)">
+      <text x="0" y="22" class="req-label" fill="#1e293b">Batch Slot 3:</text>
+      <rect x="100" y="5" width="685" height="28" rx="4" fill="url(#g-active)" stroke="#22c55e"/>
+      <text x="442" y="23" text-anchor="middle" class="active-label">Req 3 持续生成中... (各 Slot 完全独立流转)</text>
+    </g>
+
+    <!-- Summary Box -->
+    <g transform="translate(20, 215)">
+      <rect x="0" y="0" width="870" height="85" rx="8" fill="#ffffff" stroke="#86efac"/>
+      <text x="15" y="24" font-family="sans-serif" font-weight="700" font-size="13" fill="#15803d">
+        连续批处理的三大飞跃级价值：
+      </text>
+      <text x="25" y="46" class="desc-text" font-weight="600">
+        1. 消除气泡 (Zero Bubble)：短请求结束立即释放显存和计算资源，无任何 Padding 浪费。
+      </text>
+      <text x="25" y="64" class="desc-text" font-weight="600">
+        2. 首字时延暴跌 (TTFT Reduced)：排队新请求无需等大批次收尾，在下一个 Step 即可立刻被调度 Prefill 首字。
+      </text>
+      <text x="25" y="80" class="desc-text" font-weight="600">
+        3. 系统吞吐激增 (3x~5x Throughput)：GPU Tensor Core 始终维持在满载饱和计算状态！
+      </text>
+    </g>
+  </g>
+
+</svg>

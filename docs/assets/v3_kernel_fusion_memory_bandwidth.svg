@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 700" width="980" height="700">
+  <defs>
+    <style>
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 20px; fill: #1e293b; }
+      .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; fill: #64748b; }
+      .sec-hdr { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 15px; }
+      .chip-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 600; font-size: 13px; }
+      .code-lbl { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace; font-size: 11px; }
+      .desc-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; fill: #475569; }
+      .hbm-arrow { stroke: #ef4444; stroke-width: 2.2; fill: none; stroke-dasharray: 4,3; }
+      .sram-arrow { stroke: #10b981; stroke-width: 2.5; fill: none; }
+    </style>
+    <marker id="m-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#ef4444"/>
+    </marker>
+    <marker id="m-grn" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#10b981"/>
+    </marker>
+  </defs>
+
+  <rect x="10" y="10" width="960" height="680" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+
+  <!-- Title -->
+  <text x="40" y="45" class="title">V3: Triton 算子深度融合 (Kernel Fusion) 与显存带宽优化</text>
+  <text x="40" y="68" class="subtitle">传统分离算子 (受制于 HBM 显存带宽墙，频繁往返写读) vs Triton 融合算子 (片上 SRAM 原位计算，消除访存开销)</text>
+
+  <!-- ================= LEFT: Unfused Operators (Memory-Bound) ================= -->
+  <g transform="translate(35, 95)">
+    <rect x="0" y="0" width="430" height="570" rx="12" fill="#fff5f5" stroke="#fecaca" stroke-width="1.5"/>
+    <text x="20" y="30" class="sec-hdr" fill="#991b1b">传统未融合算子 (Unfused)</text>
+    <text x="20" y="50" class="desc-text">以 "残差相加 + RMSNorm" 为例: 经历 4 次慢速 HBM 往返！</text>
+
+    <!-- GPU Chip Container -->
+    <rect x="20" y="75" width="390" height="230" rx="8" fill="#ffffff" stroke="#fca5a5"/>
+    <text x="35" y="100" class="chip-title" fill="#1e293b">GPU 内部流处理器计算核 (SM / Tensor Core)</text>
+
+    <!-- Kernel 1: Residual Add -->
+    <rect x="35" y="115" width="360" height="42" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="50" y="140" class="code-lbl" fill="#991b1b">Kernel 1: aten::add (x + residual)</text>
+
+    <!-- Kernel 2: RMSNorm -->
+    <rect x="35" y="175" width="360" height="42" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="50" y="200" class="code-lbl" fill="#991b1b">Kernel 2: aten::rsqrt_mean_mul (RMSNorm)</text>
+
+    <text x="35" y="245" class="desc-text" fill="#b91c1c" font-weight="600">
+      致命瓶颈: 运算极快(&lt;1μs)，时间全浪费在等待显存总线上！
+    </text>
+
+    <!-- HBM VRAM Box -->
+    <g transform="translate(20, 325)">
+      <rect x="0" y="0" width="390" height="110" rx="8" fill="#fef2f2" stroke="#ef4444" stroke-width="1.5"/>
+      <text x="15" y="25" class="chip-title" fill="#991b1b">GPU 全局显存 (HBM / VRAM，带宽受限)</text>
+
+      <path d="M 60 -15 L 60 40" class="hbm-arrow" marker-end="url(#m-red)"/>
+      <text x="70" y="10" font-size="10" fill="#ef4444">1. 写出 Add 结果</text>
+
+      <path d="M 230 40 L 230 -15" class="hbm-arrow" marker-end="url(#m-red)"/>
+      <text x="240" y="10" font-size="10" fill="#ef4444">2. 读入 Norm 数据</text>
+
+      <text x="15" y="65" class="code-lbl" fill="#7f1d1d">• 中间张量占用巨大全局显存</text>
+      <text x="15" y="85" class="code-lbl" fill="#7f1d1d">• 显存带宽被打满，计算核严重空闲挂起</text>
+    </g>
+
+    <!-- Summary -->
+    <rect x="20" y="455" width="390" height="100" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="15" y="25" font-family="sans-serif" font-weight="700" font-size="12" fill="#7f1d1d">
+      访存量统计 (Batch=1, Seq=1, D=896):
+    </text>
+    <text x="15" y="48" class="desc-text">• 读 x, residual (2次读) + 写中间张量 (1次写)</text>
+    <text x="15" y="68" class="desc-text">• 读中间张量 (1次读) + 写 Normed (1次写)</text>
+    <text x="15" y="88" class="desc-text" font-weight="700" fill="#dc2626">总计: 3 次读 + 2 次写 = 5 次全局显存往返！</text>
+  </g>
+
+  <!-- ================= RIGHT: Fused Operator (Compute-Bound / High Efficiency) ================= -->
+  <g transform="translate(485, 95)">
+    <rect x="0" y="0" width="460" height="570" rx="12" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+    <text x="20" y="30" class="sec-hdr" fill="#15803d">Triton 深度融合算子 (Fused Kernel)</text>
+    <text x="20" y="50" class="desc-text">在片上 SRAM (Shared Memory) 中一气呵成完成残差与归一化！</text>
+
+    <!-- GPU Chip Container -->
+    <rect x="20" y="75" width="420" height="230" rx="8" fill="#ffffff" stroke="#86efac"/>
+    <text x="35" y="100" class="chip-title" fill="#15803d">GPU SM 片上高速静态缓存 (SRAM, 带宽 19+ TB/s)</text>
+
+    <!-- Single Fused Kernel Box -->
+    <rect x="35" y="115" width="390" height="100" rx="6" fill="#dcfce7" stroke="#22c55e" stroke-width="1.5"/>
+    <text x="50" y="138" class="code-lbl" fill="#14532d" font-weight="700">Triton Fused Kernel: fused_add_rmsnorm_kernel</text>
+    <text x="50" y="160" class="code-lbl" fill="#166534">① 读入 x 与 residual 到寄存器/SRAM: acc = x + residual</text>
+    <text x="50" y="180" class="code-lbl" fill="#166534">② 片内直接求平方和与均方根: rms = rsqrt(mean(acc²) + eps)</text>
+    <text x="50" y="200" class="code-lbl" fill="#166534">③ 乘权重写出: output = acc * rms * weight; residual = acc</text>
+
+    <!-- HBM VRAM Box -->
+    <g transform="translate(20, 325)">
+      <rect x="0" y="0" width="420" height="110" rx="8" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.5"/>
+      <text x="15" y="25" class="chip-title" fill="#15803d">GPU 全局显存 (HBM / VRAM)</text>
+
+      <path d="M 80 -15 L 80 40" class="sram-arrow" marker-end="url(#m-grn)"/>
+      <text x="90" y="10" font-size="10" fill="#15803d" font-weight="700">1. 一次读入 (x, res)</text>
+
+      <path d="M 280 40 L 280 -15" class="sram-arrow" marker-end="url(#m-grn)"/>
+      <text x="290" y="10" font-size="10" fill="#15803d" font-weight="700">2. 一次写回 (normed, new_res)</text>
+
+      <text x="15" y="65" class="code-lbl" fill="#166534">• 零中间张量开销，显存零碎片分配</text>
+      <text x="15" y="85" class="code-lbl" fill="#166534">• 全程不经过慢速显存总线，速度达到硬件理论极限！</text>
+    </g>
+
+    <!-- Summary -->
+    <rect x="20" y="455" width="420" height="100" rx="8" fill="#ffffff" stroke="#86efac"/>
+    <text x="15" y="25" font-family="sans-serif" font-weight="700" font-size="12" fill="#15803d">
+      融合收益总结:
+    </text>
+    <text x="15" y="48" class="desc-text">• 显存全局访存次数从 5 次暴降至 2 次 (削减 60% 带宽消耗)</text>
+    <text x="15" y="68" class="desc-text">• 单个 Kernel 调用取代原先多个小 Kernel 链式发射</text>
+    <text x="15" y="88" class="desc-text" font-weight="700" fill="#16a34a">算子级端到端耗时降低 2x ~ 3x！</text>
+  </g>
+
+</svg>

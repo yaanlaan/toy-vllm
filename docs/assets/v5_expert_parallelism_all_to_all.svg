@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 720" width="980" height="720">
+  <defs>
+    <style>
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 20px; fill: #1e293b; }
+      .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; fill: #64748b; }
+      .step-hdr { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 14px; }
+      .code-font { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace; font-size: 11px; }
+      .desc-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; fill: #475569; }
+      .a2a-send { stroke: #0284c7; stroke-width: 2.5; stroke-dasharray: 4,3; fill: none; }
+      .a2a-recv { stroke: #10b981; stroke-width: 2.5; stroke-dasharray: 4,3; fill: none; }
+    </style>
+    <marker id="ar-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#0284c7"/>
+    </marker>
+    <marker id="ar-grn" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#10b981"/>
+    </marker>
+    <linearGradient id="g-card0" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e0f2fe"/>
+      <stop offset="100%" stop-color="#bae6fd"/>
+    </linearGradient>
+    <linearGradient id="g-card1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ede9fe"/>
+      <stop offset="100%" stop-color="#ddd6fe"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="10" y="10" width="960" height="700" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+
+  <!-- Title -->
+  <text x="40" y="45" class="title">V5: 专家并行 (Expert Parallelism, EP) 与两次 All-to-All 跨卡流水</text>
+  <text x="40" y="68" class="subtitle">Token 跨卡分发 (1st All-to-All) → 本地专家并发 GEMM → 计算结果精准回收 (2nd All-to-All)</text>
+
+  <!-- ================= TOP: Token Dispatch Phase ================= -->
+  <g transform="translate(40, 95)">
+    <rect x="0" y="0" width="880" height="150" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text x="20" y="26" class="step-hdr" fill="#0369a1">阶段一：路由决策与第一次 All-to-All 通信 (Token 发送分发)</text>
+
+    <!-- GPU 0 Initial -->
+    <g transform="translate(40, 45)">
+      <rect x="0" y="0" width="360" height="85" rx="8" fill="url(#g-card0)" stroke="#38bdf8"/>
+      <text x="15" y="24" font-family="sans-serif" font-weight="700" font-size="12" fill="#0369a1">[GPU 0] 持有本地 Token: [T0, T1]</text>
+      <text x="15" y="46" class="code-font" fill="#0c4a6e">• T0 被路由到 Expert 0 (本地 GPU 0)</text>
+      <text x="15" y="66" class="code-font" fill="#0284c7">• T1 被路由到 Expert 6 (远端 GPU 1) ──► 待发送</text>
+    </g>
+
+    <!-- GPU 1 Initial -->
+    <g transform="translate(480, 45)">
+      <rect x="0" y="0" width="360" height="85" rx="8" fill="url(#g-card1)" stroke="#a78bfa"/>
+      <text x="15" y="24" font-family="sans-serif" font-weight="700" font-size="12" fill="#5b21b6">[GPU 1] 持有本地 Token: [T2, T3]</text>
+      <text x="15" y="46" class="code-font" fill="#4c1d95">• T2 被路由到 Expert 2 (远端 GPU 0) ──► 待发送</text>
+      <text x="15" y="66" class="code-font" fill="#6d28d9">• T3 被路由到 Expert 7 (本地 GPU 1)</text>
+    </g>
+  </g>
+
+  <!-- Cross All-to-All Arrows 1 -->
+  <path d="M 380 245 L 500 315" class="a2a-send" marker-end="url(#ar-blue)"/>
+  <path d="M 580 245 L 460 315" class="a2a-send" marker-end="url(#ar-blue)"/>
+  <text x="480" y="280" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#0284c7" font-weight="700">
+    第一次 All-to-All: T1 飞往 GPU 1, T2 飞往 GPU 0
+  </text>
+
+  <!-- ================= MIDDLE: Local Expert Computation ================= -->
+  <g transform="translate(40, 315)">
+    <rect x="0" y="0" width="880" height="150" rx="10" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+    <text x="20" y="26" class="step-hdr" fill="#15803d">阶段二：各卡本地专家的批处理高效计算 (Local GEMM)</text>
+
+    <!-- GPU 0 Local Computation -->
+    <g transform="translate(40, 45)">
+      <rect x="0" y="0" width="360" height="85" rx="8" fill="#ffffff" stroke="#22c55e"/>
+      <text x="15" y="22" font-family="sans-serif" font-weight="700" font-size="12" fill="#15803d">[GPU 0] 仅计算本地部署的专家 (E0~E3):</text>
+      <text x="15" y="44" class="code-font" fill="#14532d">收到属于 E0 的 Token: [T0]</text>
+      <text x="15" y="62" class="code-font" fill="#14532d">收到属于 E2 的 Token: [T2] (来自 GPU 1)</text>
+      <text x="15" y="78" class="code-font" fill="#166534">并行执行 Local GEMM 产出特征: Out_T0, Out_T2</text>
+    </g>
+
+    <!-- GPU 1 Local Computation -->
+    <g transform="translate(480, 45)">
+      <rect x="0" y="0" width="360" height="85" rx="8" fill="#ffffff" stroke="#22c55e"/>
+      <text x="15" y="22" font-family="sans-serif" font-weight="700" font-size="12" fill="#15803d">[GPU 1] 仅计算本地部署的专家 (E4~E7):</text>
+      <text x="15" y="44" class="code-font" fill="#14532d">收到属于 E6 的 Token: [T1] (来自 GPU 0)</text>
+      <text x="15" y="62" class="code-font" fill="#14532d">收到属于 E7 的 Token: [T3]</text>
+      <text x="15" y="78" class="code-font" fill="#166534">并行执行 Local GEMM 产出特征: Out_T1, Out_T3</text>
+    </g>
+  </g>
+
+  <!-- Cross All-to-All Arrows 2 -->
+  <path d="M 500 465 L 380 535" class="a2a-recv" marker-end="url(#ar-grn)"/>
+  <path d="M 460 465 L 580 535" class="a2a-recv" marker-end="url(#ar-grn)"/>
+  <text x="480" y="500" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#10b981" font-weight="700">
+    第二次 All-to-All: Out_T1 送回 GPU 0, Out_T2 送回 GPU 1
+  </text>
+
+  <!-- ================= BOTTOM: Result Recovery Phase ================= -->
+  <g transform="translate(40, 535)">
+    <rect x="0" y="0" width="880" height="135" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text x="20" y="26" class="step-hdr" fill="#334155">阶段三：源卡结果回收、Unpermute 散布与加权汇总</text>
+
+    <!-- GPU 0 Final -->
+    <g transform="translate(40, 40)">
+      <rect x="0" y="0" width="360" height="75" rx="8" fill="url(#g-card0)" stroke="#38bdf8"/>
+      <text x="15" y="22" font-family="sans-serif" font-weight="700" font-size="12" fill="#0369a1">[GPU 0] 最终恢复自己源序列:</text>
+      <text x="15" y="44" class="code-font" fill="#0c4a6e">回收完毕: [Out_T0, Out_T1]</text>
+      <text x="15" y="62" class="desc-text" font-weight="600">乘以门控权重加权累加，进入下一层！</text>
+    </g>
+
+    <!-- GPU 1 Final -->
+    <g transform="translate(480, 40)">
+      <rect x="0" y="0" width="360" height="75" rx="8" fill="url(#g-card1)" stroke="#a78bfa"/>
+      <text x="15" y="22" font-family="sans-serif" font-weight="700" font-size="12" fill="#5b21b6">[GPU 1] 最终恢复自己源序列:</text>
+      <text x="15" y="44" class="code-font" fill="#4c1d95">回收完毕: [Out_T2, Out_T3]</text>
+      <text x="15" y="62" class="desc-text" font-weight="600">乘以门控权重加权累加，进入下一层！</text>
+    </g>
+  </g>
+
+</svg>

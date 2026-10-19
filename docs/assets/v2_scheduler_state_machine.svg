@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 700" width="960" height="700">
+  <defs>
+    <style>
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 20px; fill: #1e293b; }
+      .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; fill: #64748b; }
+      .box-hdr { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 14px; }
+      .code-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace; font-size: 11px; }
+      .desc-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; fill: #475569; }
+      .flow-line { stroke: #0284c7; stroke-width: 2.2; fill: none; }
+      .loop-line { stroke: #8b5cf6; stroke-width: 2.2; stroke-dasharray: 4,4; fill: none; }
+      .free-line { stroke: #ef4444; stroke-width: 2.2; stroke-dasharray: 4,3; fill: none; }
+    </style>
+    <marker id="arr-b" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#0284c7"/>
+    </marker>
+    <marker id="arr-p" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#8b5cf6"/>
+    </marker>
+    <marker id="arr-r" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#ef4444"/>
+    </marker>
+  </defs>
+
+  <rect x="10" y="10" width="940" height="680" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+
+  <!-- Title -->
+  <text x="40" y="45" class="title">V2: 调度器状态机与连续批处理 (Continuous Batching) 迭代流</text>
+  <text x="40" y="68" class="subtitle">请求生命周期流转 (WAITING → RUNNING → FINISHED) 与动态显存分配/回收循环闭环</text>
+
+  <!-- ================= STATE 1: WAITING ================= -->
+  <g transform="translate(40, 105)">
+    <rect x="0" y="0" width="240" height="240" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="2"/>
+    <rect x="15" y="15" width="110" height="28" rx="6" fill="#e2e8f0"/>
+    <text x="70" y="34" text-anchor="middle" class="box-hdr" fill="#334155">WAITING</text>
+    
+    <text x="15" y="65" class="desc-text" font-weight="600">等待调度队列</text>
+    <text x="15" y="85" class="code-text" fill="#64748b">• add_request(prompt)</text>
+    <text x="15" y="105" class="code-text" fill="#64748b">• 存储 Prompt Token IDs</text>
+    <text x="15" y="125" class="code-text" fill="#64748b">• 尚未分配任何物理显存块</text>
+    <text x="15" y="145" class="code-text" fill="#64748b">• FIFO 队列排队等待</text>
+
+    <rect x="15" y="170" width="210" height="55" rx="6" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="25" y="190" class="desc-text" font-weight="600" fill="#0284c7">调度触发条件:</text>
+    <text x="25" y="210" class="desc-text">显存池空闲块 ≥ Prompt 所需</text>
+  </g>
+
+  <!-- Arrow: WAITING -> RUNNING -->
+  <path d="M 280 225 L 345 225" class="flow-line" marker-end="url(#arr-b)"/>
+  <text x="285" y="215" font-family="sans-serif" font-size="11" fill="#0284c7" font-weight="600">1. Prefill 申请</text>
+
+  <!-- ================= STATE 2: RUNNING ================= -->
+  <g transform="translate(350, 105)">
+    <rect x="0" y="0" width="280" height="370" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="2"/>
+    <rect x="15" y="15" width="120" height="28" rx="6" fill="#bbf7d0"/>
+    <text x="75" y="34" text-anchor="middle" class="box-hdr" fill="#14532d">RUNNING</text>
+    
+    <text x="15" y="65" class="desc-text" font-weight="600">迭代解码运行集 (Running Set)</text>
+    
+    <!-- Step details -->
+    <g transform="translate(15, 80)">
+      <rect x="0" y="0" width="250" height="60" rx="6" fill="#ffffff" stroke="#86efac"/>
+      <text x="10" y="20" class="desc-text" font-weight="700" fill="#15803d">A. Prefill 首次前向:</text>
+      <text x="10" y="38" class="code-text" fill="#166534">分配 Prompt Blocks, 写入全量 KV,</text>
+      <text x="10" y="52" class="code-text" fill="#166534">产出第 1 个生成的 Token</text>
+    </g>
+
+    <g transform="translate(15, 150)">
+      <rect x="0" y="0" width="250" height="90" rx="6" fill="#ffffff" stroke="#86efac"/>
+      <text x="10" y="20" class="desc-text" font-weight="700" fill="#15803d">B. Decode 批量迭代循环:</text>
+      <text x="10" y="38" class="code-text" fill="#166534">• 打包所有 Running 序列单 Token</text>
+      <text x="10" y="54" class="code-text" fill="#166534">• 模型执行批处理 Decode 前向</text>
+      <text x="10" y="70" class="code-text" fill="#166534">• 写入各 BlockTable 对应槽位</text>
+      <text x="10" y="84" class="code-text" fill="#166534">• 采样产出各请求最新 Token</text>
+    </g>
+
+    <!-- Loop arrow within RUNNING -->
+    <path d="M 270 260 Q 295 290 270 320" class="loop-line" marker-end="url(#arr-p)"/>
+    <text x="210" y="310" font-family="sans-serif" font-size="11" fill="#7c3aed" font-weight="600">未结束则持续循环</text>
+
+    <rect x="15" y="280" width="250" height="70" rx="6" fill="#ecfdf5" stroke="#34d399"/>
+    <text x="10" y="300" class="desc-text" font-weight="700" fill="#047857">终止判断 (Termination Check):</text>
+    <text x="10" y="320" class="code-text" fill="#065f46">• next_token == EOS_TOKEN 或</text>
+    <text x="10" y="338" class="code-text" fill="#065f46">• output_len == max_new_tokens</text>
+  </g>
+
+  <!-- Arrow: RUNNING -> FINISHED -->
+  <path d="M 630 225 L 695 225" class="flow-line" marker-end="url(#arr-b)"/>
+  <text x="635" y="215" font-family="sans-serif" font-size="11" fill="#0284c7" font-weight="600">2. 触发终止</text>
+
+  <!-- ================= STATE 3: FINISHED ================= -->
+  <g transform="translate(700, 105)">
+    <rect x="0" y="0" width="220" height="240" rx="10" fill="#fdf2f8" stroke="#f43f5e" stroke-width="2"/>
+    <rect x="15" y="15" width="110" height="28" rx="6" fill="#fecdd3"/>
+    <text x="70" y="34" text-anchor="middle" class="box-hdr" fill="#9f1239">FINISHED</text>
+    
+    <text x="15" y="65" class="desc-text" font-weight="600">已完成状态 (退席)</text>
+    <text x="15" y="85" class="code-text" fill="#9f1239">• 拼接完整回复文本</text>
+    <text x="15" y="105" class="code-text" fill="#9f1239">• 返回最终 RequestOutput</text>
+    <text x="15" y="125" class="code-text" fill="#9f1239">• 从 running_queue 移除</text>
+
+    <!-- Immediate memory release -->
+    <rect x="15" y="145" width="190" height="80" rx="6" fill="#ffffff" stroke="#fb7185"/>
+    <text x="10" y="165" font-family="sans-serif" font-weight="700" font-size="11" fill="#e11d48">核心动作: 即时释放显存</text>
+    <text x="10" y="185" class="code-text" fill="#be123c">block_table.free_all()</text>
+    <text x="10" y="202" class="code-text" fill="#be123c">归还所有物理块至 Pool</text>
+    <text x="10" y="218" class="code-text" fill="#be123c">供排队请求下一步复用！</text>
+  </g>
+
+  <!-- Reclaimed Memory Loopback Arrow to WAITING -->
+  <path d="M 810 345 L 810 520 L 160 520 L 160 350" class="free-line" marker-end="url(#arr-r)"/>
+  <rect x="360" y="505" width="300" height="30" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="510" y="525" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#b91c1c">
+    回收的物理块立即赋能 WAITING 队列接纳新请求
+  </text>
+
+  <!-- Bottom Architecture Principle -->
+  <g transform="translate(40, 565)">
+    <rect x="0" y="0" width="880" height="95" rx="8" fill="#f8fafc" stroke="#cbd5e1"/>
+    <text x="20" y="25" font-family="sans-serif" font-weight="700" font-size="13" fill="#1e293b">
+      V2 调度器核心执行方法: Scheduler.schedule()
+    </text>
+    <text x="20" y="48" class="desc-text">
+      1. <tspan font-weight="700">先保存量</tspan>: 评估所有当前 RUNNING 请求在下一步 Decode 中是否能顺利分配到 Block（若刚好跨边界触发分配）。
+    </text>
+    <text x="20" y="68" class="desc-text">
+      2. <tspan font-weight="700">再迎增量</tspan>: 若显存池仍有足够余量，从 WAITING 队列头部弹出一个新请求执行 Prefill 并放入 RUNNING。
+    </text>
+    <text x="20" y="88" class="desc-text">
+      3. <tspan font-weight="700">Step 驱动</tspan>: 外部调用一次 step() 即执行一次全局调度决策与单步前向计算，实现毫秒级动态调度与高并发吞吐！
+    </text>
+  </g>
+
+</svg>

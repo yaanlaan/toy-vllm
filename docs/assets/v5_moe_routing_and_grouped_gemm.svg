@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 720" width="980" height="720">
+  <defs>
+    <style>
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 20px; fill: #1e293b; }
+      .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; fill: #64748b; }
+      .sec-hdr { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 14px; }
+      .code-lbl { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace; font-size: 11px; }
+      .desc-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; fill: #475569; }
+      .flow-arrow { stroke: #0284c7; stroke-width: 2; fill: none; }
+      .permute-arrow { stroke: #8b5cf6; stroke-width: 2.2; fill: none; }
+      .shared-arrow { stroke: #f59e0b; stroke-width: 2.2; stroke-dasharray: 4,3; fill: none; }
+    </style>
+    <marker id="ar-b" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#0284c7"/>
+    </marker>
+    <marker id="ar-p" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#8b5cf6"/>
+    </marker>
+    <marker id="ar-o" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#f59e0b"/>
+    </marker>
+    <linearGradient id="g-gate" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="100%" stop-color="#fde047"/>
+    </linearGradient>
+    <linearGradient id="g-expert" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e0f2fe"/>
+      <stop offset="100%" stop-color="#bae6fd"/>
+    </linearGradient>
+    <linearGradient id="g-shared" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fed7aa"/>
+      <stop offset="100%" stop-color="#fb923c"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="10" y="10" width="960" height="700" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+
+  <!-- Title -->
+  <text x="40" y="45" class="title">V5: MoE 混合专家模型门控路由与“专家找 Token”计算重排机制</text>
+  <text x="40" y="68" class="subtitle">Top-K 门控动态稀疏路由 + 共享专家基底 + Token 重排聚合 (Permute / Grouped GEMM / Unpermute)</text>
+
+  <!-- ================= TOP: Input & Router ================= -->
+  <g transform="translate(40, 95)">
+    <rect x="0" y="0" width="880" height="150" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text x="20" y="26" class="sec-hdr" fill="#1e293b">1. 输入序列与 Top-K 门控路由网络 (Router / Gating Network)</text>
+
+    <!-- Tokens Input -->
+    <g transform="translate(20, 45)">
+      <rect x="0" y="0" width="180" height="85" rx="6" fill="#ffffff" stroke="#94a3b8"/>
+      <text x="15" y="24" class="code-lbl" font-weight="700">输入 Token 矩阵 X</text>
+      <text x="15" y="46" class="code-lbl" fill="#64748b">shape: (num_tokens, D)</text>
+      <text x="15" y="66" class="code-lbl" fill="#0284c7">Tokens: [T0, T1, T2, T3]</text>
+    </g>
+
+    <path d="M 210 87 L 255 87" class="flow-arrow" marker-end="url(#ar-b)"/>
+
+    <!-- Router Box -->
+    <g transform="translate(265, 45)">
+      <rect x="0" y="0" width="310" height="85" rx="6" fill="url(#g-gate)" stroke="#eab308"/>
+      <text x="15" y="24" class="code-lbl" font-weight="700" fill="#854d0e">MoE Router (W_gate: D → N_experts)</text>
+      <text x="15" y="46" class="desc-text">1. 计算 Logits = X @ W_gate</text>
+      <text x="15" y="66" class="desc-text">2. 选出 Top-K 专家索引 (如 K=2) 并做局部 Softmax 归一化</text>
+    </g>
+
+    <path d="M 585 87 L 625 87" class="flow-arrow" marker-end="url(#ar-b)"/>
+
+    <!-- Routing Decisions -->
+    <g transform="translate(635, 45)">
+      <rect x="0" y="0" width="225" height="85" rx="6" fill="#ffffff" stroke="#eab308"/>
+      <text x="15" y="22" font-size="11" font-weight="700" fill="#854d0e">路由决策 (Top-2 示例):</text>
+      <text x="15" y="42" class="code-lbl" fill="#0f172a">T0 → Expert 0 (0.7), Expert 2 (0.3)</text>
+      <text x="15" y="58" class="code-lbl" fill="#0f172a">T1 → Expert 1 (0.8), Expert 3 (0.2)</text>
+      <text x="15" y="74" class="code-lbl" fill="#0f172a">T2 → Expert 0 (0.6), Expert 1 (0.4)</text>
+    </g>
+  </g>
+
+  <!-- Split paths down to Shared and Routed -->
+  <path d="M 130 245 L 130 295" class="shared-arrow" marker-end="url(#ar-o)"/>
+  <path d="M 420 245 L 420 295" class="permute-arrow" marker-end="url(#ar-p)"/>
+
+  <!-- ================= MIDDLE LEFT: Shared Expert ================= -->
+  <g transform="translate(40, 305)">
+    <rect x="0" y="0" width="220" height="280" rx="10" fill="#fff7ed" stroke="#fed7aa" stroke-width="1.5"/>
+    <text x="15" y="26" class="sec-hdr" fill="#c2410c">共享专家 (Shared Expert)</text>
+    <text x="15" y="48" class="desc-text">所有 Token 100% 必须参与计算</text>
+    
+    <rect x="15" y="65" width="190" height="130" rx="6" fill="url(#g-shared)" stroke="#ea580c"/>
+    <text x="25" y="90" font-family="sans-serif" font-weight="700" font-size="12" fill="#ffffff">Shared SwiGLU MLP</text>
+    <text x="25" y="112" class="code-lbl" fill="#fff7ed">捕捉通用通识语言特征</text>
+    <text x="25" y="132" class="code-lbl" fill="#fff7ed">避免稀疏路由导致的</text>
+    <text x="25" y="152" class="code-lbl" fill="#fff7ed">基础语言能力遗忘</text>
+    <text x="25" y="176" font-size="11" font-weight="700" fill="#ffffff">输出: Y_shared</text>
+
+    <text x="15" y="225" class="desc-text" font-weight="600">Qwen2-MoE 与 DeepSeek</text>
+    <text x="15" y="245" class="desc-text" font-weight="600">核心架构标配！</text>
+  </g>
+
+  <!-- ================= MIDDLE RIGHT: Routed Experts (Permute & Grouped GEMM) ================= -->
+  <g transform="translate(280, 305)">
+    <rect x="0" y="0" width="640" height="280" rx="10" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+    <text x="20" y="26" class="sec-hdr" fill="#15803d">2. 路由专家聚合重排 (专家找 Token / Grouped GEMM)</text>
+    <text x="20" y="48" class="desc-text">消灭逐 Token 循环调用的碎片化灾难：重排将分配给同专家的 Token 聚集连续执行 GEMM！</text>
+
+    <!-- Substep 1: Permute / Group -->
+    <g transform="translate(20, 65)">
+      <rect x="0" y="0" width="180" height="195" rx="6" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="12" y="22" font-size="11" font-weight="700" fill="#0f172a">A. Token 重排 (Permute)</text>
+      <text x="12" y="42" class="code-lbl" fill="#5b21b6">Expert 0 收集: [T0, T2]</text>
+      <text x="12" y="62" class="code-lbl" fill="#5b21b6">Expert 1 收集: [T1, T2]</text>
+      <text x="12" y="82" class="code-lbl" fill="#5b21b6">Expert 2 收集: [T0]</text>
+      <text x="12" y="102" class="code-lbl" fill="#5b21b6">Expert 3 收集: [T1]</text>
+      <rect x="12" y="125" width="156" height="55" rx="4" fill="#ede9fe"/>
+      <text x="18" y="145" font-size="10" fill="#6d28d9" font-weight="700">记录逆映射索引</text>
+      <text x="18" y="165" font-size="10" fill="#6d28d9">供计算后 Unpermute 还原</text>
+    </g>
+
+    <path d="M 210 162 L 240 162" class="flow-arrow" marker-end="url(#ar-b)"/>
+
+    <!-- Substep 2: Batched Experts Forward -->
+    <g transform="translate(250, 65)">
+      <rect x="0" y="0" width="190" height="195" rx="6" fill="#ffffff" stroke="#86efac"/>
+      <text x="12" y="22" font-size="11" font-weight="700" fill="#15803d">B. 连续批量 GEMM 执行</text>
+      <!-- Mini Expert 0 -->
+      <rect x="12" y="35" width="165" height="32" rx="4" fill="url(#g-expert)" stroke="#38bdf8"/>
+      <text x="20" y="55" class="code-lbl" fill="#0369a1">Expert 0: 2 tokens batch</text>
+      <!-- Mini Expert 1 -->
+      <rect x="12" y="73" width="165" height="32" rx="4" fill="url(#g-expert)" stroke="#38bdf8"/>
+      <text x="20" y="93" class="code-lbl" fill="#0369a1">Expert 1: 2 tokens batch</text>
+      <!-- Mini Expert 2,3 -->
+      <rect x="12" y="111" width="165" height="32" rx="4" fill="url(#g-expert)" stroke="#38bdf8"/>
+      <text x="20" y="131" class="code-lbl" fill="#0369a1">Expert 2: 1 token</text>
+      <rect x="12" y="149" width="165" height="32" rx="4" fill="url(#g-expert)" stroke="#38bdf8"/>
+      <text x="20" y="169" class="code-lbl" fill="#0369a1">Expert 3: 1 token</text>
+    </g>
+
+    <path d="M 450 162 L 480 162" class="flow-arrow" marker-end="url(#ar-b)"/>
+
+    <!-- Substep 3: Scatter & Weight Accumulation -->
+    <g transform="translate(490, 65)">
+      <rect x="0" y="0" width="130" height="195" rx="6" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="10" y="22" font-size="11" font-weight="700" fill="#0f172a">C. 加权还原</text>
+      <text x="10" y="45" font-size="10" fill="#475569">Unpermute 散布</text>
+      <text x="10" y="65" font-size="10" fill="#475569">乘以门控权重 P</text>
+      <rect x="10" y="85" width="110" height="95" rx="4" fill="#ecfdf5" stroke="#22c55e"/>
+      <text x="15" y="115" font-size="10" font-weight="700" fill="#14532d">累加输出:</text>
+      <text x="15" y="135" class="code-lbl" fill="#14532d">Y_routed =</text>
+      <text x="15" y="155" class="code-lbl" fill="#14532d">Σ P_i * E_i(X)</text>
+    </g>
+  </g>
+
+  <!-- Bottom Combine -->
+  <g transform="translate(40, 605)">
+    <rect x="0" y="0" width="880" height="60" rx="8" fill="#f8fafc" stroke="#64748b"/>
+    <text x="20" y="35" font-family="sans-serif" font-weight="700" font-size="13" fill="#1e293b">
+      最终 MoE 层输出融合: Output = Y_shared + Y_routed + Residual
+    </text>
+  </g>
+
+</svg>

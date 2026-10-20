@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from typing import Tuple, Optional, List
 from toy_vllm.config import ModelConfig
+from toy_vllm.modules.layernorm import RMSNorm
 from toy_vllm.modules.rotary_embedding import RotaryEmbedding, apply_rotary_pos_emb
 from toy_vllm.core.forward_context import ForwardContext
 
@@ -48,17 +49,29 @@ class GroupedQueryAttention(nn.Module):
         self.num_kv_groups = self.num_heads // self.num_kv_heads
         self.scale = 1.0 / math.sqrt(self.head_dim)
 
+        self.is_qwen3 = (config.model_type == "qwen3")
+        if self.is_qwen3:
+            qkv_bias = False
+            o_bias = False
+            self.q_norm = RMSNorm(self.head_dim, eps=config.rms_norm_eps)
+            self.k_norm = RMSNorm(self.head_dim, eps=config.rms_norm_eps)
+        else:
+            qkv_bias = True
+            o_bias = False
+            self.q_norm = None
+            self.k_norm = None
+
         self.q_proj = nn.Linear(
-            self.hidden_size, self.num_heads * self.head_dim, bias=True
+            self.hidden_size, self.num_heads * self.head_dim, bias=qkv_bias
         )
         self.k_proj = nn.Linear(
-            self.hidden_size, self.num_kv_heads * self.head_dim, bias=True
+            self.hidden_size, self.num_kv_heads * self.head_dim, bias=qkv_bias
         )
         self.v_proj = nn.Linear(
-            self.hidden_size, self.num_kv_heads * self.head_dim, bias=True
+            self.hidden_size, self.num_kv_heads * self.head_dim, bias=qkv_bias
         )
         self.o_proj = nn.Linear(
-            self.num_heads * self.head_dim, self.hidden_size, bias=False
+            self.num_heads * self.head_dim, self.hidden_size, bias=o_bias
         )
 
         self.rotary_emb = RotaryEmbedding(
@@ -81,10 +94,20 @@ class GroupedQueryAttention(nn.Module):
         k = self.k_proj(hidden_states)
         v = self.v_proj(hidden_states)
 
-        # Reshape to (batch, num_heads, seq_len, head_dim)
-        q = q.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
-        k = k.view(bsz, q_len, self.num_kv_heads, self.head_dim).transpose(1, 2)
-        v = v.view(bsz, q_len, self.num_kv_heads, self.head_dim).transpose(1, 2)
+        # Reshape to (batch, seq_len, num_heads, head_dim)
+        q = q.view(bsz, q_len, self.num_heads, self.head_dim)
+        k = k.view(bsz, q_len, self.num_kv_heads, self.head_dim)
+        v = v.view(bsz, q_len, self.num_kv_heads, self.head_dim)
+
+        # QK-Norm for Qwen3 architectures
+        if self.q_norm is not None:
+            q = self.q_norm(q)
+        if self.k_norm is not None:
+            k = self.k_norm(k)
+
+        q = q.transpose(1, 2)
+        k = k.transpose(1, 2)
+        v = v.transpose(1, 2)
 
         # 2. RoPE Rotary Embeddings
         cos, sin = self.rotary_emb(v, position_ids)
@@ -248,5 +271,7 @@ class GroupedQueryAttention(nn.Module):
 
         # 4. Output projection
         attn_output = attn_output.transpose(1, 2).contiguous()
-        attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
+        attn_output = attn_output.reshape(
+            bsz, q_len, self.num_heads * self.head_dim
+        )
         return self.o_proj(attn_output)

@@ -4,8 +4,8 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.14%2Bcu130-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Triton](https://img.shields.io/badge/Triton-3.8.0-red?style=flat-square)](https://github.com/triton-lang/triton)
 [![CUDA](https://img.shields.io/badge/CUDA-12.8%20%7C%2013.0-76B900?style=flat-square&logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-toolkit)
-[![Tests](https://img.shields.io/badge/Tests-20%20Passed-brightgreen?style=flat-square)](tests/)
-[![Architecture](https://img.shields.io/badge/Arch-V0--V5%20Complete-blue?style=flat-square)](ROADMAP.md)
+[![Tests](https://img.shields.io/badge/Tests-22%20Passed-brightgreen?style=flat-square)](tests/)
+[![Architecture](https://img.shields.io/badge/Arch-Qwen2%20%7C%20Qwen2.5%20%7C%20Qwen3-blue?style=flat-square)](ROADMAP.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](LICENSE)
 
 **Toy-vLLM** 是一个参考工业级 SOTA 推理引擎（vLLM、SGLang、Orca、Megatron-LM）设计理念，采用**循序渐进、版本迭代驱动（V0 -> V5）**方式从零构建的大模型推理系统。
@@ -86,7 +86,7 @@ uv pip install torch --index-url https://download.pytorch.org/whl/cu130
 uv pip install triton-windows transformers safetensors accelerate tokenizers sentencepiece tiktoken numpy matplotlib pytest
 ```
 
-### 2. 运行自动化测试套件 (20 项全量通过)
+### 2. 运行自动化测试套件 (22 项全量通过)
 
 ```powershell
 $env:PYTHONPATH="."
@@ -96,6 +96,7 @@ python -m pytest tests/
 测试覆盖范围：
 - `test_model.py`: 整机端到端前向与 HuggingFace 官方权重精确对齐；
 - `test_modules.py`: RMSNorm、RoPE、SwiGLU、GQA、Sampler 基础算子单测；
+- `test_qwen3.py`: Qwen3 架构扩展（QK-Norm 归一化、可配置 head_dim、PagedAttention 对齐）；
 - `test_v1_paged_attention.py`: 显存池生命周期、BlockTable 扩容边界与无泄漏验证；
 - `test_v2_scheduler.py`: 调度队列流转、连续批处理多并发早退机制；
 - `test_v3_kernels.py`: Triton Fused Ops 与 Triton PagedAttention 精度对齐；
@@ -104,23 +105,26 @@ python -m pytest tests/
 
 ### 3. 运行交互式语言模型对话终端 (Chat CLI)
 
-通过 Toy-vLLM 推理引擎直接与大语言模型（如 Qwen2.5-0.5B-Instruct）进行交互：
+通过 Toy-vLLM 推理引擎直接与大语言模型（默认支持 Qwen3-0.6B 与 Qwen2.5-0.5B）进行交互：
 
 ```powershell
 $env:PYTHONPATH="."
 
-# 启动默认问题对话体验
-python examples/chat_cli.py
+# 启动 Qwen3-0.6B 默认对话体验
+python examples/chat_cli.py --model qwen3
 
-# 传入自定义提示词进行提问
-python examples/chat_cli.py "请用 Python 编写一个高效的快速排序函数，并附带简单示例："
+# 指定提示词与自定义生成上限
+python examples/chat_cli.py --model qwen3 --prompt "请简述什么是张量并行？" --max_tokens 150
+
+# 切换为 Qwen2.5-0.5B 模型运行
+python examples/chat_cli.py --model qwen2 --prompt "请用 Python 编写快速排序算法"
 ```
 
 ### 4. 运行各版本特性演示与性能对比脚本
 
 ```powershell
-# [V0] 极简自回归流式生成体验
-python examples/demo_v0.py
+# [Qwen3] Qwen3-0.6B 架构特性与端到端流式推理 Demo
+python examples/demo_qwen3.py
 
 # [V1] Paged KV Cache vs 无缓存基准对比 (验证加速比与比特级输出一致性)
 python examples/demo_v1_benchmark.py

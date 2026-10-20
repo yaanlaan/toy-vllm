@@ -44,8 +44,9 @@ class LLMEngine:
         self.max_num_seqs = max_num_seqs
         self.use_cuda_graph = use_cuda_graph
 
+        model_name = self.config.model_type.upper() if hasattr(self.config, "model_type") else "Qwen"
         print(
-            f"[toy-vllm] Initializing Qwen2 ({self.config.num_hidden_layers} layers, "
+            f"[toy-vllm] Initializing {model_name} ({self.config.num_hidden_layers} layers, "
             f"hidden_size={self.config.hidden_size}) on {self.device}..."
         )
         self.model = Qwen2ForCausalLM(self.config)
